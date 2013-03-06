@@ -9,7 +9,6 @@ var
   cli = require("casper").create().cli,
   casper = require("casper").create(),
   exampleJsonInput = {
-    "targetUrl": "http://eu.tagman.com/",
     "jsExpressions": [
       "tmPageId",
       "TMAN._containers[0].tags.length"
@@ -17,8 +16,16 @@ var
     "requests": [
       "google\\\\-analytics"
     ],
-    "referrerUrl": "http://www.google.co.uk/",
     "steps":[
+      {
+        "type":"setReferrer",
+        "referrerURL":"http://www.google.co.uk/",
+        "targetURL":"http://eu.tagman.com/"
+      },
+      {
+        "type":"visit",
+        "url":"http://eu.tagman.com/"
+      },
       {
         "type":"click",
         "selector":"#updateOrderLineForm input.continueinputbtn"
@@ -47,7 +54,7 @@ var
     ]
   },
   exampleJsonOutput = {
-    "targetUrl":"http://eu.tagman.com/",
+    "finalUrl":"http://eu.tagman.com/",
     "jsExpressions":{
       "tmPageId":7,
       "TMAN._containers[0].tags.length":1
@@ -230,7 +237,7 @@ tester = (function(config, debug, stepsScreenShots) {
     }(expression));
   }
 
-  function setReferrer(referrer) {
+  function setReferrer(referrer, targetUrl) {
     var linkId = 'myTargetUrl_' + new Date().getTime();
     if (debug) {
       casper.echo('Visiting referring page: ' + referrerUrl);
@@ -301,7 +308,7 @@ tester = (function(config, debug, stepsScreenShots) {
        */
       switch(step.type) {
         case STEP_SET_REFERRER:
-          setReferrer(step.referrer);
+          setReferrer(step.referrerURL, step.targetURL);
           break;
         case STEP_EVALUATE:
           executeExpression(step.expression);
