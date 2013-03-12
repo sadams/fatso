@@ -8,8 +8,7 @@ var testRootPath = path.dirname(currentPath + '../');
 var fatsoPath = path.dirname(testRootPath + '../') + '/fatso.js';
 var exec = require('child_process').exec;
 
-//server.start(testServerPort, testRootPath);
-
+//test utilities
 function getFullUrl(localPath) {
     return util.format('http://localhost:%d/%s', testServerPort, localPath)
 }
@@ -18,21 +17,37 @@ function generateCommand(config) {
     return util.format("casperjs %s --json='%s'", fatsoPath, JSON.stringify(config));
 }
 
-//module.exports = {
-//    setUp: function (callback) {
-//        callback();
-//    },
-//    tearDown: function (callback) {
-//        callback();
-//    },
-//    test1: function (test) {
-//        test.equals(this.foo, 'bar');
-//        test.done();
-//    }
-//};
+function setUp(callback) {
+  server.start(testServerPort, testRootPath);
+  callback();
+}
 
+function tearDown(callback) {
+  server.stop();
+  callback();
+}
 
-testVisit = function(test){
+function executeCommand(conf, callback) {
+  exec(generateCommand(conf), function(error, stdout, stderr) {
+    if (error !== null) {
+      throw new Error('exec error: ' + error);
+    }
+    var json = JSON.parse(stdout)
+    callback(json);
+  });
+}
+
+//the tests
+function testNoConfigThrowException(test){
+  exec(generateCommand({}), function(error, stdout, stderr) {
+    if (error === null) {
+      test.ok(false, 'no error was returned from the empty config command');
+    }
+    test.done();
+  });
+}
+
+function testVisit(test){
   var url = getFullUrl('site/visit.html');
   var conf = {
     "steps":[
@@ -42,16 +57,13 @@ testVisit = function(test){
       }
     ]
   };
-  console.log(generateCommand(conf));
-  exec(generateCommand(conf), function(error, stdout, stderr) {
-      console.log(stdout);
-      var result = JSON.parse(stdout);
+  executeCommand(conf, function(result){
       test.equals(result.finalUrl, url);
       test.done();
   });
-};
+}
 
-testSimpleExpression = function(test){
+function testSimpleExpression(test){
   var url = getFullUrl('site/expression.html');
   var testVar = "xyz";
   var testVarExpectedValue = "foo";
@@ -65,27 +77,20 @@ testSimpleExpression = function(test){
         "url":url
       }
     ]
-  };
-  console.log(generateCommand(conf));
-  exec(generateCommand(conf), function(error, stdout, stderr) {
-    console.log(stdout);
-    var result = JSON.parse(stdout);
+  }
+  executeCommand(conf, function(result){
     test.equals(result.jsExpressions[testVar], testVarExpectedValue);
     test.done();
   });
 };
-setUp = function (callback) {
-  server.start(testServerPort, testRootPath);
-  callback();
-};
-tearDown = function (callback) {
-  server.stop();
-  callback();
-}
+
+
+
 module.exports = {
-  setUp                 : setUp,
-  tearDown              : tearDown,
-  testVisit             : testVisit,
-  testSimpleExpression  : testSimpleExpression
+  setUp                      : setUp,
+  tearDown                   : tearDown,
+  testNoConfigThrowException : testNoConfigThrowException,
+  testVisit                  : testVisit,
+  testSimpleExpression       : testSimpleExpression
 }
 //server.stop();
