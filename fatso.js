@@ -64,18 +64,27 @@ var
     },
     "referrerUrl":"http://www.google.co.uk/"
   },
-  usage = 'Valid options (json required): --json=\'{[valid json]}\', --verbose (casper verbose), --debug\n\
+  usage = 'Valid options (json required): --json=\'{[valid json]}\', --verbose (casper verbose), --log-to-console=true\n\
 \n\
 Example JSON ("requests" have to be regex compatible) (has to be without line breaks):\n\
 '+JSON.stringify(exampleJsonInput)+'\n\
 \n\
 Example Results JSON Output:\n\
 '+JSON.stringify(exampleJsonOutput)+'',
-  debug = cli.has("debug") ? true : false,
+  debug = cli.has("log-to-console") ? true : false,
   stepsScreenShots = false, // enable screen-shotting the steps as we go
   casperConfig = {
     verbose : cli.has("verbose")
   };
+
+function forEach(obj, fn){
+  for (var prop in obj) {
+    if (obj.hasOwnProperty(prop)) {
+      var val = obj[prop];
+      fn.call(val, val, prop);
+    }
+  }
+}
 
 casper = require("casper").create(casperConfig);
 
@@ -104,7 +113,6 @@ tester = (function(config, debug, stepsScreenShots) {
   var STEP_EVALUATE = 'evaluate';
 
   var referrerUrl = false;
-  var visitFirstUrl = false;
   var jsExpressions = [];
   var requests = [];
   var steps = [];
@@ -114,36 +122,39 @@ tester = (function(config, debug, stepsScreenShots) {
   var jsExpressionResults = {};
   var requestResults = {};
 
-  function isUndefinedOrEmpty(obj) {
-    return typeof obj === UNDEFINED || obj == '' || obj === false;
+  function isUndefined(obj) {
+    return typeof obj === UNDEFINED;
   }
 
-  function isDefinedAndNotEmpty(obj) {
-    return typeof obj !== UNDEFINED && obj != '' && obj !== false;
+  function isEmpty(obj) {
+    return isUndefined(obj) || function (obj) {
+      return !((typeof obj === 'object') ? Object.keys(obj).length : obj);
+    }(obj);
   }
 
-  function defaultValueTo(value, defaultVaule) {
-    if (isUndefinedOrEmpty(defaultVaule)) {
-      defaultVaule = false;
+  function defaultValueTo(value, defaultValue) {
+    if (isUndefined(defaultValue)) {
+      defaultValue = false;
     }
-    return isUndefinedOrEmpty(value) ? defaultVaule: value;
+    return isEmpty(value) ? defaultValue: value;
   }
 
   function initialise(config) {
-    if (isUndefinedOrEmpty(config)) {
-      throw "Config not correct";
+    if (isEmpty(config)) {
+      throw new Error("Config not correct");
     }
 
-    if (isUndefinedOrEmpty(config.steps)) {
+    if (isUndefined(config.steps)) {
       throw new Error('At least one step must exist');
     }
 
     steps = defaultValueTo(config.steps, []);
     jsExpressions = defaultValueTo(config.jsExpressions, []);
+
     requests = defaultValueTo(config.requests, []);
 
     requests.forEach(function(value){
-      requestResults[value] = false;
+      requestResults[value] = UNDEFINED;
     });
 
     jsExpressions.forEach(function(value){
@@ -151,22 +162,24 @@ tester = (function(config, debug, stepsScreenShots) {
     });
   }
 
-  function indexesWithFalseValuesToArray(object) {
+  function indexesWithUndefinedValuesToArray(obj) {
     var results = [];
-    object.foreach(function(value, index) {
-      if (value === false) {
-        results.push(index);
-      }
-    });
+    if (!isEmpty(obj)) {
+      forEach(obj, function(value, index) {
+        if (isUndefined(value)) {
+          results.push(index);
+        }
+      });
+    }
     return results;
   }
 
   function getRequestsToBeMade() {
-    return indexesWithFalseValuesToArray(requestResults);
+    return indexesWithUndefinedValuesToArray(requestResults);
   }
 
   function getUndefinedExpressions() {
-    return indexesWithFalseValuesToArray(jsExpressionResults);
+    return indexesWithUndefinedValuesToArray(jsExpressionResults);
   }
   
   function finish(finalReferrer, finalUrl) {
@@ -190,32 +203,6 @@ tester = (function(config, debug, stepsScreenShots) {
     
     casper.echo(JSON.stringify(returnObj));
     casper.exit(code);
-  }
-
-  function setupInitialRequest() {
-    //if we have a referrer we have to open that page first -> will then click to targetUrl to set referrer ( see page.onLoadFinished() )
-    if (referrerUrl) {
-
-
-    } else if (visitFirstUrl) {
-      if (debug) {
-        casper.echo('visting initial page: ' + visitFirstUrl);
-      }
-      casper.open(visitFirstUrl).then(function(){
-        if (debug) {
-          this.echo('initial page loaded: ' + this.getCurrentUrl());
-        }
-        this.open(targetUrl);
-      });
-    } else {
-      casper.open(targetUrl);
-    }
-
-    casper.then(function(){
-      if (debug) {
-        this.echo('target page reached: ' + this.getCurrentUrl());
-      }
-    });
   }
 
   function executeExpression(expression) {
@@ -291,7 +278,7 @@ tester = (function(config, debug, stepsScreenShots) {
   function visit(url) {
     casper.then(function(url) {
       return function(){
-        this.thenOpen(url, function() {
+        casper.open(url, function() {
           if(debug) {
             casper.echo("Now on page: " + url);
           }
@@ -320,7 +307,7 @@ tester = (function(config, debug, stepsScreenShots) {
           click(step.selector)
           break;
         case STEP_VISIT:
-          visit(url);
+          visit(step.url);
           break;
       }
 
@@ -412,7 +399,6 @@ tester = (function(config, debug, stepsScreenShots) {
 
   function test() {
     casper.start();
-    setupInitialRequest();
     setupSteps();
     setupResourceListeners();
     setupExpressionResolver();

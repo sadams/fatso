@@ -1,23 +1,23 @@
-var fs = require('fs');
-var util = require('util');
-var http = require('http');
+//var fs = require('fs');
+//var util = require('util');
+//var http = require('http');
 var sys  = require('sys');
 var connect = require('connect');
 //var url  = require('url');
 
-
-function testServer() {
+module.exports = (function () {
     var server;
     function start(port, baseTestPath) {
-      var app = connect()
-        //    .use(connect.logger('dev'))
+        console.log(baseTestPath);
+      server = connect()
+//        .use(connect.logger('dev'))
         .use(connect.static(baseTestPath))
 //            .use(function(req, res){
 //                res.end('hello world\n');
 //            })
         .listen(port);
       sys.log('Listening on: ' + port);
-      return app;
+      return server;
 //        console.log(port);
 //        server = http.createServer(function(request, response) {
 //
@@ -58,6 +58,4 @@ function testServer() {
         start:start,
         stop:stop
     }
-}
-
-module.exports = testServer();
+})();
