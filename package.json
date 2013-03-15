@@ -1,9 +1,12 @@
 {
   "name": "fatso",
   "version": "0.0.1",
-  "description": "A script on top of casperjs for navigating through webpages and reporting on the last page reached via json config",
+  "description": "A script on top of casperjs for navigating through webpages and reporting on the last page reached via JSON config",
   "author": "Sam Adams <adams.sam@gmail.com>",
   "devDependencies" : {
-    "connect"                : "*"
+    "connect"                : "2.7.3"
+  },
+  "engines": {
+    "node": "0.8"
   }
 }

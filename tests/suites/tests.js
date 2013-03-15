@@ -84,13 +84,43 @@ function testSimpleExpression(test){
   });
 };
 
+function testRequests(test){
+  var url = getFullUrl('site/request.html');
+  var imageRegex = "foo\\.png";
+  var expectedImageRequest = "foo";
+  var scriptRegex = "bar\\.js";
+  var expectedScriptRequest = "bar";
+  var jsImgRegex = "bing\\.jpg";
+  var expectedJsImgRequest = "bing";
+  var conf = {
+    "requests": [
+      imageRegex,
+      jsImgRegex,
+      scriptRegex
+    ],
+    "steps":[
+      {
+        "type":"visit",
+        "url":url
+      }
+    ]
+  }
+  executeCommand(conf, function(result){
+    test.equals(result.requests[scriptRegex], expectedScriptRequest);
+    test.equals(result.requests[imageRegex], expectedImageRequest);
+    test.equals(result.requests[jsImgRegex], expectedJsImgRequest);
+    test.done();
+  });
+};
+
 
 
 module.exports = {
   setUp                      : setUp,
   tearDown                   : tearDown,
-  testNoConfigThrowException : testNoConfigThrowException,
-  testVisit                  : testVisit,
-  testSimpleExpression       : testSimpleExpression
+//  testNoConfigThrowException : testNoConfigThrowException,
+//  testVisit                  : testVisit,
+//  testSimpleExpression       : testSimpleExpression,
+  testRequests               : testRequests
 }
 //server.stop();
