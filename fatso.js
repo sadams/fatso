@@ -2,7 +2,7 @@
  * fatso.js
  * @author Sam Adams <adams.sam@gmail.com>
  */
-
+/*jshint multistr: true */
 var
   config,
   tester,
@@ -64,13 +64,13 @@ var
     },
     "referrerUrl":"http://www.google.co.uk/"
   },
-  usage = 'Valid options (json required): --json=\'{[valid json]}\', --verbose (casper verbose), --log-to-console=true\n\
-\n\
-Example JSON ("requests" have to be regex compatible) (has to be without line breaks):\n\
-'+JSON.stringify(exampleJsonInput)+'\n\
-\n\
-Example Results JSON Output:\n\
-'+JSON.stringify(exampleJsonOutput)+'',
+
+  usage = 'Valid options (json required): --json=\'{[valid json]}\', --verbose (casper verbose), --log-to-console=true\n\n' +
+    'Example JSON ("requests" have to be regex compatible) (has to be without line breaks):\n' +
+    JSON.stringify(exampleJsonInput) +
+    '\n\n' +
+    'Example Results JSON Output:\n' +
+    JSON.stringify(exampleJsonOutput),
   debug = cli.has("log-to-console") ? true : false,
   stepsScreenShots = false, // enable screen-shotting the steps as we go
   casperConfig = {
@@ -225,12 +225,14 @@ tester = (function(config, debug, stepsScreenShots) {
 //                alert('foo');
 //              });
         this.thenEvaluate(function() {
+          /*jshint evil: true */
           eval(expression);
+          /*jshint evil: false */
         });
         if(debug) {
           casper.echo("Evaluated: " + expression);
         }
-      }
+      };
     }(expression));
   }
 
@@ -245,11 +247,11 @@ tester = (function(config, debug, stepsScreenShots) {
         this.echo('referring page loaded: ' + this.getCurrentUrl());
       }
       // Inject and Click a Link to our target
-      var ret = this.evaluate(function (target) {
+      this.evaluate(function (target) {
         // Create and append the link
         var link = document.createElement('a');
         link.setAttribute('href', target);
-        link.setAttribute('id', linkId)
+        link.setAttribute('id', linkId);
         document.body.appendChild(link);
       }, {
         target:targetUrl
@@ -268,7 +270,7 @@ tester = (function(config, debug, stepsScreenShots) {
         if(debug) {
           casper.echo("Now on page: " + formsub.url);
         }
-      }
+      };
     }(options));
   }
 
@@ -281,7 +283,7 @@ tester = (function(config, debug, stepsScreenShots) {
           }
           this.click(selector);
         });
-      }
+      };
     }(selector));
   }
 
@@ -293,7 +295,7 @@ tester = (function(config, debug, stepsScreenShots) {
             casper.echo("Now on page: " + url);
           }
         });
-      }
+      };
     }(url));
   }
 
@@ -314,14 +316,14 @@ tester = (function(config, debug, stepsScreenShots) {
           submitForm(step);
           break;
         case STEP_CLICK:
-          click(step.selector)
+          click(step.selector);
           break;
         case STEP_VISIT:
           visit(step.url);
           break;
       }
 
-      casper.then(function(local_i, localStepType){
+      casper.then(function(index, localStepType){
         /*
          * we are returning a closure to change the scope of the passed
          * variables so they don't change in every iteration.
@@ -335,13 +337,13 @@ tester = (function(config, debug, stepsScreenShots) {
          */
         return function() {
           if (stepsScreenShots) {
-            casper.capture(local_i+'-'+localStepType+'.png');
+            casper.capture(index + '-' + localStepType + '.png');
           }
           if (debug) {
             casper.echo('Current URL: ' + this.getCurrentUrl());
-            casper.echo('step ' + local_i + ' complete.');
+            casper.echo('step ' + index + ' complete.');
           }
-        }
+        };
       }(i, step.type));
 
     });
@@ -355,13 +357,15 @@ tester = (function(config, debug, stepsScreenShots) {
   function setupResourceListeners() {
     casper.waitForResource(function check(request) {
       for(var pattern in requestResults) {
-        if (!isNull(requestResults[pattern])) {
-          continue;
-        }
-        var regex = new RegExp(pattern);
-        if (regex.test(request.url)) {
-          requestResults[pattern] = request.url;
-          continue;
+        if (requestResults.hasOwnProperty(pattern)) {
+          if (!isNull(requestResults[pattern])) {
+            continue;
+          }
+          var regex = new RegExp(pattern);
+          if (regex.test(request.url)) {
+            requestResults[pattern] = request.url;
+            continue;
+          }
         }
       }
 
@@ -382,22 +386,26 @@ tester = (function(config, debug, stepsScreenShots) {
 
   function setupExpressionResolver() {
     casper.waitFor(function check() {
+      /*jshint evil:true */
+      function evaluate(expression) {
+        return eval(expression);
+      }
+      /*jshint evil:false */
       for(var expression in jsExpressionResults) {
-        if (!isNull(jsExpressionResults[expression])) {
-          continue;
-        }
+        if (jsExpressionResults.hasOwnProperty(expression)) {
 
-        var value = this.evaluate(function (expression) {
-          /*jshint evil:true */
-          return eval(expression);
-          /*jshint evil:false */
-        }, {
-          expression : expression
-        });
+          if (!isNull(jsExpressionResults[expression])) {
+            continue;
+          }
 
-        if (!isUndefined(value)) {
-          jsExpressionResults[expression] = value;
-          continue;
+          var value = this.evaluate(evaluate, {
+            expression : expression
+          });
+
+          if (!isUndefined(value)) {
+            jsExpressionResults[expression] = value;
+            continue;
+          }
         }
       }
       if (getUndefinedExpressions().length < 1) {
@@ -425,26 +433,28 @@ tester = (function(config, debug, stepsScreenShots) {
       if (debug) {
         this.echo('finishing');
       }
+      /*jshint evil:true */
       var foundReferrer = this.evaluate(function (expression) {
         return eval(expression);
       }, {
         expression : 'window.document.referrer'
       });
+      /*jshint evil:false */
+
       finish(foundReferrer, this.getCurrentUrl());
     });
-    
     casper.run();
   }
   initialise(config);
 
   return {
     test:test
-  }
+  };
 })(config, debug, stepsScreenShots);
 
 try {
   tester.test();
 } catch (e) {
-  throw e;
+//  throw e;
   casper.exit(1);
 }

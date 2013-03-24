@@ -4,7 +4,8 @@
   "description": "A script on top of casperjs for navigating through webpages and reporting on the last page reached via JSON config",
   "author": "Sam Adams <adams.sam@gmail.com>",
   "devDependencies" : {
-    "connect"                : "2.7.3"
+    "connect"     : "2.7.3",
+    "jshint"      : "1.1.0"
   },
   "engines": {
     "node": "0.8"

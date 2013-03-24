@@ -8,6 +8,8 @@ var currentPath = path.dirname(module.filename);
 var testRootPath = path.dirname(currentPath + '../');
 var fatsoPath = path.dirname(testRootPath + '../') + '/fatso.js';
 var exec = require('child_process').exec;
+var JSHINT = require("jshint").JSHINT;
+
 
 //test utilities
 function getFullUrl(localPath) {
@@ -78,12 +80,12 @@ function testSimpleExpression(test){
         "url":url
       }
     ]
-  }
+  };
   executeCommand(conf, function(result){
     test.equals(result.jsExpressions[testVar], testVarExpectedValue);
     test.done();
   });
-};
+}
 
 function testRequests(test){
   var testPageUrl = getFullUrl('site/request.html');
@@ -105,16 +107,57 @@ function testRequests(test){
         "url":testPageUrl
       }
     ]
-  }
+  };
   executeCommand(conf, function(result){
     test.equals(url.parse(result.requests[scriptRegex]).path, expectedScriptRequest);
     test.equals(url.parse(result.requests[imageRegex]).path, expectedImageRequest);
     test.equals(url.parse(result.requests[jsImgRegex]).path, expectedJsImgRequest);
     test.done();
   });
-};
+}
+function generateLintReport(file) {
+  var report = '';
+  function appendToReport(data) {
+    var nl  = "\n";
+    report += data + nl;
+  }
+  appendToReport('Errors in file ' + file);
 
+  var out = JSHINT.data(),
+    errors = JSHINT.errors;
 
+  errors.forEach(function(error){
+    if (error) {
+      // have to check this because, god knows why, but NULL is one of the elements of the errors array, and so there isn't really anything we can do about it.
+      appendToReport(
+        error.line + ':' + error.character + ' -> ' + error.reason + ' -> ' + error.evidence
+      );
+    }
+  });
+  for(var j=0;j<errors.length;j++) {
+  }
+
+  // List globals
+  appendToReport('');
+
+  appendToReport('Globals: ');
+  for(j=0;j<out.globals.length;j++) {
+    appendToReport('    ' + out.globals[j]);
+  }
+  return report;
+}
+function testCodeQuality(test) {
+  fs.readFile(fatsoPath, function(err, data){
+    if (err) {
+      throw err;
+    }
+    if (!JSHINT(data.toString())){
+      test.fail();
+      console.log(generateLintReport(fatsoPath));
+    }
+    test.done();
+  });
+}
 
 module.exports = {
   setUp                      : setUp,
@@ -122,6 +165,6 @@ module.exports = {
   testNoConfigThrowException : testNoConfigThrowException,
   testVisit                  : testVisit,
   testSimpleExpression       : testSimpleExpression,
-  testRequests               : testRequests
-}
-//server.stop();
+  testRequests               : testRequests,
+  testCodeQuality            : testCodeQuality
+};
