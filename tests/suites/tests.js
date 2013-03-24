@@ -3,6 +3,7 @@ var fs = require('fs');
 var server = require('../testServer');
 var util = require('util');
 var path = require('path');
+var url = require('url');
 var currentPath = path.dirname(module.filename);
 var testRootPath = path.dirname(currentPath + '../');
 var fatsoPath = path.dirname(testRootPath + '../') + '/fatso.js';
@@ -85,13 +86,13 @@ function testSimpleExpression(test){
 };
 
 function testRequests(test){
-  var url = getFullUrl('site/request.html');
+  var testPageUrl = getFullUrl('site/request.html');
   var imageRegex = "foo\\.png";
-  var expectedImageRequest = "foo";
+  var expectedImageRequest = "/site/foo.png";
   var scriptRegex = "bar\\.js";
-  var expectedScriptRequest = "bar";
+  var expectedScriptRequest = "/site/bar.js";
   var jsImgRegex = "bing\\.jpg";
-  var expectedJsImgRequest = "bing";
+  var expectedJsImgRequest = "/site/bing.jpg";
   var conf = {
     "requests": [
       imageRegex,
@@ -101,14 +102,14 @@ function testRequests(test){
     "steps":[
       {
         "type":"visit",
-        "url":url
+        "url":testPageUrl
       }
     ]
   }
   executeCommand(conf, function(result){
-    test.equals(result.requests[scriptRegex], expectedScriptRequest);
-    test.equals(result.requests[imageRegex], expectedImageRequest);
-    test.equals(result.requests[jsImgRegex], expectedJsImgRequest);
+    test.equals(url.parse(result.requests[scriptRegex]).path, expectedScriptRequest);
+    test.equals(url.parse(result.requests[imageRegex]).path, expectedImageRequest);
+    test.equals(url.parse(result.requests[jsImgRegex]).path, expectedJsImgRequest);
     test.done();
   });
 };
@@ -118,9 +119,9 @@ function testRequests(test){
 module.exports = {
   setUp                      : setUp,
   tearDown                   : tearDown,
-//  testNoConfigThrowException : testNoConfigThrowException,
-//  testVisit                  : testVisit,
-//  testSimpleExpression       : testSimpleExpression,
+  testNoConfigThrowException : testNoConfigThrowException,
+  testVisit                  : testVisit,
+  testSimpleExpression       : testSimpleExpression,
   testRequests               : testRequests
 }
 //server.stop();

@@ -122,8 +122,12 @@ tester = (function(config, debug, stepsScreenShots) {
   var jsExpressionResults = {};
   var requestResults = {};
 
-  function isUndefined(obj) {
-    return typeof obj === UNDEFINED;
+  function isUndefined(test) {
+    return typeof test === UNDEFINED;
+  }
+
+  function isNull(test) {
+    return test === null;
   }
 
   function isEmpty(obj) {
@@ -154,19 +158,25 @@ tester = (function(config, debug, stepsScreenShots) {
     requests = defaultValueTo(config.requests, []);
 
     requests.forEach(function(value){
-      requestResults[value] = UNDEFINED;
+      requestResults[value] = null;
     });
 
     jsExpressions.forEach(function(value){
-      jsExpressionResults[value] = false;
+      jsExpressionResults[value] = null;
     });
   }
 
-  function indexesWithUndefinedValuesToArray(obj) {
+  /**
+   * We use NULL as the not-set-value because, when we output the results,
+   *  if they don't resolve, 'undefined' values would not be output.
+   * @param {Object} obj
+   * @returns {Array}
+   */
+  function indexesWithNullValuesToArray(obj) {
     var results = [];
     if (!isEmpty(obj)) {
       forEach(obj, function(value, index) {
-        if (isUndefined(value)) {
+        if (isNull(value)) {
           results.push(index);
         }
       });
@@ -175,11 +185,11 @@ tester = (function(config, debug, stepsScreenShots) {
   }
 
   function getRequestsToBeMade() {
-    return indexesWithUndefinedValuesToArray(requestResults);
+    return indexesWithNullValuesToArray(requestResults);
   }
 
   function getUndefinedExpressions() {
-    return indexesWithUndefinedValuesToArray(jsExpressionResults);
+    return indexesWithNullValuesToArray(jsExpressionResults);
   }
   
   function finish(finalReferrer, finalUrl) {
@@ -337,10 +347,15 @@ tester = (function(config, debug, stepsScreenShots) {
     });
   }
 
+  /**
+   * Using casper.waitForResource, we make casper call the passed function with a request object.
+   * Only when all the requests we are waiting for have passed through this function does it return true, which allows
+   *  it to stop waiting.
+   */
   function setupResourceListeners() {
     casper.waitForResource(function check(request) {
       for(var pattern in requestResults) {
-        if (requestResults[pattern] !== false) {
+        if (!isNull(requestResults[pattern])) {
           continue;
         }
         var regex = new RegExp(pattern);
@@ -349,6 +364,7 @@ tester = (function(config, debug, stepsScreenShots) {
           continue;
         }
       }
+
       if (getRequestsToBeMade().length > 0) {
         return false;
       }
@@ -367,17 +383,19 @@ tester = (function(config, debug, stepsScreenShots) {
   function setupExpressionResolver() {
     casper.waitFor(function check() {
       for(var expression in jsExpressionResults) {
-        if (jsExpressionResults[expression] !== false) {
+        if (!isNull(jsExpressionResults[expression])) {
           continue;
         }
 
         var value = this.evaluate(function (expression) {
+          /*jshint evil:true */
           return eval(expression);
+          /*jshint evil:false */
         }, {
           expression : expression
         });
 
-        if (typeof value !== 'undefined') {
+        if (!isUndefined(value)) {
           jsExpressionResults[expression] = value;
           continue;
         }
