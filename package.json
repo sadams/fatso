@@ -5,7 +5,8 @@
   "author": "Sam Adams <adams.sam@gmail.com>",
   "devDependencies" : {
     "connect"     : "2.7.3",
-    "jshint"      : "1.1.0"
+    "jshint"      : "1.1.0",
+    "underscore"  : "1.4.4"
   },
   "engines": {
     "node": "0.8"

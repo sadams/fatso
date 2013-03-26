@@ -9,7 +9,7 @@ var testRootPath = path.dirname(currentPath + '../');
 var fatsoPath = path.dirname(testRootPath + '../') + '/fatso.js';
 var exec = require('child_process').exec;
 var JSHINT = require("jshint").JSHINT;
-
+var _ = require('underscore');
 
 //test utilities
 function forEach(obj, fn){
@@ -40,12 +40,12 @@ function tearDown(callback) {
 }
 
 function executeCommand(conf, callback) {
-//  console.log(generateCommand(conf));
-  exec(generateCommand(conf), function(error, stdout, stderr) {
+  var command = generateCommand(conf);
+  exec(command, function(error, stdout, stderr) {
     if (error !== null) {
-      throw new Error('exec error: ' + error);
+      throw new Error("Command: \n" + command + "\nError: " + error + "\nOutput: " + stdout + "\n");
     }
-    var json = JSON.parse(stdout)
+    var json = JSON.parse(stdout);
     callback(json);
   });
 }
@@ -61,38 +61,72 @@ function testNoConfigThrowException(test){
 }
 
 function testVisit(test){
-  var url = getFullUrl('site/visit.html');
+  var testPageUrl = getFullUrl('site/visit.html');
   var conf = {
     "steps":[
       {
-          "type":"visit",
-          "url":url
+        "type":"visit",
+        "url":testPageUrl
       }
     ]
   };
   executeCommand(conf, function(result){
-      test.equals(result.finalUrl, url);
+      test.equals(result.finalUrl, testPageUrl);
       test.done();
   });
 }
 
-function testSimpleExpression(test){
-  var url = getFullUrl('site/expression.html');
-  var testVar = "xyz";
-  var testVarExpectedValue = "foo";
+function testFormSubmit(test){
+  var testPageUrl = getFullUrl('site/formSubmit.html');
+  var testConfig = {
+    "foo":"abc",
+    "bar":"xyz"
+  }
+
   var conf = {
-    "jsExpressions": [
-      testVar
-    ],
     "steps":[
       {
         "type":"visit",
-        "url":url
+        "url":testPageUrl
+      },
+      {
+        type:"formSubmit",
+        "selector":"form",
+        "fields": _.clone(testConfig)
       }
     ]
   };
   executeCommand(conf, function(result){
-    test.equals(result.jsExpressions[testVar], testVarExpectedValue);
+    var urlParts = url.parse(result.finalUrl, true);
+    forEach(testConfig, function(val, key) {
+      test.equals(urlParts.query[key], val);
+    });
+    test.done();
+  });
+}
+
+function testExpressions(test){
+  var testPageUrl = getFullUrl('site/expression.html');
+  var testConfig = {
+    "abc"  : "bar",
+    "xyz"  : "foo"
+  };
+  var conf = {
+    "jsExpressions": [],
+    "steps":[
+      {
+        "type":"visit",
+        "url":testPageUrl
+      }
+    ]
+  };
+  forEach(testConfig, function(val, key) {
+    conf.jsExpressions.push(key);
+  });
+  executeCommand(conf, function(result){
+    forEach(testConfig, function(val, key) {
+      test.equals(result.jsExpressions[key], val);
+    });
     test.done();
   });
 }
@@ -118,7 +152,6 @@ function testRequests(test){
   });
   executeCommand(conf, function(result){
     forEach(testConfig, function(val, key) {
-      conf.requests.push(key);
       test.equals(url.parse(result.requests[key]).path, val);
     });
     test.done();
@@ -175,7 +208,8 @@ module.exports = {
   tearDown                   : tearDown,
   testNoConfigThrowException : testNoConfigThrowException,
   testVisit                  : testVisit,
-  testSimpleExpression       : testSimpleExpression,
+  testFormSubmit             : testFormSubmit,
+  testExpressions            : testExpressions,
   testRequests               : testRequests,
   testCodeQuality            : testCodeQuality
 };
