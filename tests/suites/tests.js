@@ -134,6 +134,7 @@ function testExpressions(test){
 function testRequests(test){
   var testPageUrl = getFullUrl('site/request.html');
   var testConfig = {
+    //regex -> actual path
     "foo\\.png" : "/site/foo.png",
     "bar\\.js"  : "/site/bar.js",
     "bing\\.jpg"  : "/site/bing.jpg"
