@@ -7,7 +7,7 @@ var
   config,
   tester,
   cli = require("casper").create().cli,
-  casper = require("casper").create(),
+  casper,
   exampleJsonInput = {
     "jsExpressions": [
       "tmPageId",

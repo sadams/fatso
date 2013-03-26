@@ -12,6 +12,15 @@ var JSHINT = require("jshint").JSHINT;
 
 
 //test utilities
+function forEach(obj, fn){
+  for (var prop in obj) {
+    if (obj.hasOwnProperty(prop)) {
+      var val = obj[prop];
+      fn.call(val, val, prop);
+    }
+  }
+}
+
 function getFullUrl(localPath) {
     return util.format('http://localhost:%d/%s', testServerPort, localPath)
 }
@@ -31,6 +40,7 @@ function tearDown(callback) {
 }
 
 function executeCommand(conf, callback) {
+//  console.log(generateCommand(conf));
   exec(generateCommand(conf), function(error, stdout, stderr) {
     if (error !== null) {
       throw new Error('exec error: ' + error);
@@ -89,18 +99,13 @@ function testSimpleExpression(test){
 
 function testRequests(test){
   var testPageUrl = getFullUrl('site/request.html');
-  var imageRegex = "foo\\.png";
-  var expectedImageRequest = "/site/foo.png";
-  var scriptRegex = "bar\\.js";
-  var expectedScriptRequest = "/site/bar.js";
-  var jsImgRegex = "bing\\.jpg";
-  var expectedJsImgRequest = "/site/bing.jpg";
+  var testConfig = {
+    "foo\\.png" : "/site/foo.png",
+    "bar\\.js"  : "/site/bar.js",
+    "bing\\.jpg"  : "/site/bing.jpg"
+  };
   var conf = {
-    "requests": [
-      imageRegex,
-      jsImgRegex,
-      scriptRegex
-    ],
+    "requests": [],
     "steps":[
       {
         "type":"visit",
@@ -108,13 +113,18 @@ function testRequests(test){
       }
     ]
   };
+  forEach(testConfig, function(val, key) {
+    conf.requests.push(key);
+  });
   executeCommand(conf, function(result){
-    test.equals(url.parse(result.requests[scriptRegex]).path, expectedScriptRequest);
-    test.equals(url.parse(result.requests[imageRegex]).path, expectedImageRequest);
-    test.equals(url.parse(result.requests[jsImgRegex]).path, expectedJsImgRequest);
+    forEach(testConfig, function(val, key) {
+      conf.requests.push(key);
+      test.equals(url.parse(result.requests[key]).path, val);
+    });
     test.done();
   });
 }
+
 function generateLintReport(file) {
   var report = '';
   function appendToReport(data) {
@@ -146,6 +156,7 @@ function generateLintReport(file) {
   }
   return report;
 }
+
 function testCodeQuality(test) {
   fs.readFile(fatsoPath, function(err, data){
     if (err) {
