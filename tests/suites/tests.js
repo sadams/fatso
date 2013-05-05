@@ -10,6 +10,7 @@ var fatsoPath = path.dirname(testRootPath + '../') + '/fatso.js';
 var exec = require('child_process').exec;
 var JSHINT = require("jshint").JSHINT;
 var _ = require('underscore');
+var connect = require('connect');
 
 //test utilities
 function forEach(obj, fn){
@@ -21,12 +22,13 @@ function forEach(obj, fn){
   }
 }
 
-function getFullUrl(localPath) {
-    return util.format('http://localhost:%d/%s', testServerPort, localPath)
+function getFullUrl(localPath, port) {
+  port = _.isUndefined(port) ? testServerPort : port;
+  return util.format('http://localhost:%d/%s', port, localPath);
 }
 
 function generateCommand(config) {
-    return util.format("casperjs %s --json='%s'", fatsoPath, JSON.stringify(config));
+  return util.format("casperjs %s --json='%s'", fatsoPath, JSON.stringify(config));
 }
 
 function setUp(callback) {
@@ -41,6 +43,7 @@ function tearDown(callback) {
 
 function executeCommand(conf, callback) {
   var command = generateCommand(conf);
+//  console.log(command);
   exec(command, function(error, stdout, stderr) {
     if (error !== null) {
       throw new Error("Command: \n" + command + "\nError: " + error + "\nOutput: " + stdout + "\n");
@@ -60,7 +63,7 @@ function testNoConfigThrowException(test){
   });
 }
 
-function testVisit(test){
+function testVisitStep(test){
   var testPageUrl = getFullUrl('site/visit.html');
   var conf = {
     "steps":[
@@ -76,12 +79,12 @@ function testVisit(test){
   });
 }
 
-function testFormSubmit(test){
+function testFormSubmitStep(test){
   var testPageUrl = getFullUrl('site/formSubmit.html');
   var testConfig = {
     "foo":"abc",
     "bar":"xyz"
-  }
+  };
 
   var conf = {
     "steps":[
@@ -178,14 +181,12 @@ function generateLintReport(file) {
       );
     }
   });
-  for(var j=0;j<errors.length;j++) {
-  }
 
   // List globals
   appendToReport('');
 
   appendToReport('Globals: ');
-  for(j=0;j<out.globals.length;j++) {
+  for(var j=0; j<out.globals.length; j++) {
     appendToReport('    ' + out.globals[j]);
   }
   return report;
@@ -204,12 +205,81 @@ function testCodeQuality(test) {
   });
 }
 
+function testSetReferrerStep(test) {
+  var referrerServerPort = testServerPort + 1;
+  var referringServer = connect()
+      .use(connect.static(testRootPath))
+      .listen(referrerServerPort);
+  var referrerUrl = getFullUrl('site/referrer.html', referrerServerPort);
+  var targetUrl = getFullUrl('site/referrer.html');
+  var conf = {
+    "steps":[
+      {
+        "type":"setReferrer",
+        "referrerURL":referrerUrl,
+        "targetURL":targetUrl
+      }
+    ]
+  };
+  executeCommand(conf, function(result){
+    test.ok(result.finalUrl.indexOf(testServerPort) !== -1, 'Unexpected final URL: ' + result.finalUrl);
+    test.ok(result.referrerUrl.indexOf(referrerServerPort) !== -1, 'Unexpected referring URL: ' + result.referrerUrl);
+    referringServer.close();
+    test.done();
+  });
+}
+
+function testClickStep(test) {
+  var testPageUrl = getFullUrl('site/click.html');
+  var conf = {
+    "jsExpressions": ['foo'],
+    "steps":[
+      {
+        "type":"visit",
+        "url":testPageUrl
+      },
+      {
+        "type":"click",
+        "selector":'#clickMe'
+      }
+    ]
+  };
+  executeCommand(conf, function(result){
+    test.equals(result.jsExpressions['foo'], 'now clicked');
+    test.done();
+  });
+}
+
+function testEvaluateStep(test) {
+  var testPageUrl = getFullUrl('site/expression.html');
+  var conf = {
+    "jsExpressions": ['lmn'],
+    "steps":[
+      {
+        "type":"visit",
+        "url":testPageUrl
+      },
+      {
+        "type":"evaluate",
+        "expression":'window.lmn = xyz + abc;'
+      }
+    ]
+  };
+  executeCommand(conf, function(result){
+    test.equals(result.jsExpressions['lmn'], 'foobar');
+    test.done();
+  });
+}
+
 module.exports = {
   setUp                      : setUp,
   tearDown                   : tearDown,
   testNoConfigThrowException : testNoConfigThrowException,
-  testVisit                  : testVisit,
-  testFormSubmit             : testFormSubmit,
+  testClickStep              : testClickStep,
+  testEvaluateStep           : testEvaluateStep,
+  testVisitStep              : testVisitStep,
+  testFormSubmitStep         : testFormSubmitStep,
+  testSetReferrerStep        : testSetReferrerStep,
   testExpressions            : testExpressions,
   testRequests               : testRequests,
   testCodeQuality            : testCodeQuality

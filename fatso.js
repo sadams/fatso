@@ -10,8 +10,8 @@ var
   casper,
   exampleJsonInput = {
     "jsExpressions": [
-      "tmPageId",
-      "TMAN._containers[0].tags.length"
+      "my.object.variableEquals",
+      "someOtherFunctionReturns()"
     ],
     "requests": [
       "google\\\\-analytics"
@@ -20,11 +20,11 @@ var
       {
         "type":"setReferrer",
         "referrerURL":"http://www.google.co.uk/",
-        "targetURL":"http://eu.tagman.com/"
+        "targetURL":"http://foo.bar.com/"
       },
       {
         "type":"visit",
-        "url":"http://eu.tagman.com/"
+        "url":"http://foo.bar.com/"
       },
       {
         "type":"click",
@@ -54,10 +54,10 @@ var
     ]
   },
   exampleJsonOutput = {
-    "finalUrl":"http://eu.tagman.com/",
+    "finalUrl":"http://foo.bar.com/",
     "jsExpressions":{
-      "tmPageId":7,
-      "TMAN._containers[0].tags.length":1
+      "my.object.variableEquals":7,
+      "someOtherFunctionReturns()":1
     },
     "requests":{
       "google\\-analytics":"http://www.google-analytics.com/ga.js"
@@ -121,6 +121,12 @@ tester = (function(config, debug, stepsScreenShots) {
 
   var jsExpressionResults = {};
   var requestResults = {};
+
+  function echo(message) {
+    if (debug) {
+      casper.echo(message);
+    }
+  }
 
   function isUndefined(test) {
     return typeof test === UNDEFINED;
@@ -191,10 +197,10 @@ tester = (function(config, debug, stepsScreenShots) {
   function getUndefinedExpressions() {
     return indexesWithNullValuesToArray(jsExpressionResults);
   }
-  
+
   function finish(finalReferrer, finalUrl) {
     var code = 0;
-    
+
     var returnObj = {
       finalUrl : finalUrl,
       jsExpressions : jsExpressionResults,
@@ -210,52 +216,46 @@ tester = (function(config, debug, stepsScreenShots) {
       returnObj.error = e.message;
       code = 1;
     }
-    
+
     casper.echo(JSON.stringify(returnObj));
     casper.exit(code);
   }
 
   function executeExpression(expression) {
-    casper.then(function(expression){
-      return function(){
-        if(debug) {
-          casper.echo("Evaluating: " + expression);
-        }
-//              this.evaluate(function() {
-//                alert('foo');
-//              });
-        this.thenEvaluate(function() {
-          /*jshint evil: true */
-          eval(expression);
-          /*jshint evil: false */
-        });
-        if(debug) {
-          casper.echo("Evaluated: " + expression);
-        }
-      };
-    }(expression));
+    casper.then(function() {
+      echo("Evaluating: " + expression);
+      var returnValue = this.evaluate(function (expression) {
+        /*jshint evil: true */
+        var fatsoReturnValue = eval(expression);
+        /*jshint evil: false */
+        return fatsoReturnValue;
+      }, {
+        expression:expression
+      });
+      echo("Return value of evaluation: " + returnValue);
+      echo("Evaluated: " + expression);
+    });
   }
 
   function setReferrer(referrer, targetUrl) {
     var linkId = 'myTargetUrl_' + new Date().getTime();
-    if (debug) {
-      casper.echo('Visiting referring page: ' + referrerUrl);
-    }
+    echo('Visiting referring page: ' + referrer);
     casper.open(referrer);
     casper.then(function() {
-      if (debug) {
-        this.echo('referring page loaded: ' + this.getCurrentUrl());
-      }
+      echo('Referring page loaded: ' + this.getCurrentUrl());
       // Inject and Click a Link to our target
-      this.evaluate(function (target) {
+      var linkLoaded = this.evaluate(function (target, linkId) {
         // Create and append the link
         var link = document.createElement('a');
         link.setAttribute('href', target);
         link.setAttribute('id', linkId);
         document.body.appendChild(link);
+        return document.getElementById(linkId) ? true : false;
       }, {
-        target:targetUrl
+        target:targetUrl,
+        linkId:linkId
       });
+      echo('Link correctly generated: ' + (linkLoaded ? 'true' : 'false'));
     });
     casper.then(function(){
       this.click('a#' + linkId);
@@ -267,9 +267,7 @@ tester = (function(config, debug, stepsScreenShots) {
       return function(){
         //TODO: put the waitForSelector thing in as with click below
         this.fill(formsub.selector, formsub.fields, true);
-        if(debug) {
-          casper.echo("Now on page: " + formsub.url);
-        }
+        echo("Now on page: " + formsub.url);
       };
     }(options));
   }
@@ -278,9 +276,7 @@ tester = (function(config, debug, stepsScreenShots) {
     casper.then(function(selector) {
       return function(){
         this.waitForSelector(selector, function(){
-          if(debug) {
-            casper.echo("Clicking element with selector: '" + selector + "'");
-          }
+          echo("Clicking element with selector: '" + selector + "'");
           this.click(selector);
         });
       };
@@ -288,13 +284,10 @@ tester = (function(config, debug, stepsScreenShots) {
   }
 
   function visit(url) {
+    echo('Attempting to visit: ' + url);
     casper.then(function(url) {
       return function(){
-        casper.open(url, function() {
-          if(debug) {
-            casper.echo("Now on page: " + url);
-          }
-        });
+        casper.open(url);
       };
     }(url));
   }
@@ -339,10 +332,8 @@ tester = (function(config, debug, stepsScreenShots) {
           if (stepsScreenShots) {
             casper.capture(index + '-' + localStepType + '.png');
           }
-          if (debug) {
-            casper.echo('Current URL: ' + this.getCurrentUrl());
-            casper.echo('step ' + index + ' complete.');
-          }
+            echo('Current URL: ' + this.getCurrentUrl());
+            echo('step ' + index + ' complete.');
         };
       }(i, step.type));
 
@@ -374,13 +365,9 @@ tester = (function(config, debug, stepsScreenShots) {
       }
       return true;
     }, function then(){
-      if (debug) {
-        casper.echo('resource successfully waited for');
-      }
+      echo('resource successfully waited for');
     }, function timeout(){
-      if (debug) {
-        casper.echo('resources timed out');
-      }
+      echo('resources timed out');
     });
   }
 
@@ -397,7 +384,7 @@ tester = (function(config, debug, stepsScreenShots) {
           if (!isNull(jsExpressionResults[expression])) {
             continue;
           }
-
+          //echo('Evaluating expression: ' + expression);
           var value = this.evaluate(evaluate, {
             expression : expression
           });
@@ -413,13 +400,9 @@ tester = (function(config, debug, stepsScreenShots) {
       }
       return false;
     }, function then(){
-      if (debug) {
-        casper.echo('expressions successfully resolved');
-      }
+      echo('expressions successfully resolved');
     }, function timeout(){
-      if (debug) {
-        casper.echo('waiting for expressions timed out');
-      }
+      echo('waiting for expressions timed out');
     });
   }
 
@@ -430,9 +413,7 @@ tester = (function(config, debug, stepsScreenShots) {
     setupExpressionResolver();
 
     casper.then(function(){
-      if (debug) {
-        this.echo('finishing');
-      }
+      echo('finishing');
       /*jshint evil:true */
       var foundReferrer = this.evaluate(function (expression) {
         return eval(expression);

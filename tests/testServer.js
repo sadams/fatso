@@ -16,5 +16,5 @@ module.exports = (function () {
   return {
       start:start,
       stop:stop
-  }
+  };
 })();
